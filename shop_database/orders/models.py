@@ -38,6 +38,12 @@ class Article(models.Model):
             ),
         )
 
+    def is_available_quantity(
+        self, required_quantity: Optional[int] = 1
+    ) -> bool:
+        """Проверка доступности товара в заданном количестве."""
+        return self.quantity >= required_quantity
+
 
 class Client(models.Model):
     name = models.CharField(max_length=100)
@@ -55,7 +61,9 @@ class Order(models.Model):
     client = models.ForeignKey(
         Client, related_name='orders', on_delete=models.PROTECT
     )
-    status = models.CharField(max_length=10, choices=StatusChoice.choices)
+    status = models.CharField(
+        max_length=10, choices=StatusChoice.choices, default=StatusChoice.CREATED
+    )
 
     @property
     def total_price(self):
@@ -63,8 +71,12 @@ class Order(models.Model):
             total=models.Sum(models.F('quantity') * models.F('price_in_order'))
         )['total'] or 0
 
+    def is_modified(self) -> bool:
+        """Можно ли изменять заказ."""
+        return self.status in (self.StatusChoice.CREATED,)
 
-class ArticleInOrder(models.Model):
+
+class ItemInOrder(models.Model):
     order = models.ForeignKey(
         Order, related_name='articles', on_delete=models.PROTECT, db_index=True
     )
@@ -77,7 +89,7 @@ class ArticleInOrder(models.Model):
     @property
     def total_price(self):
         return self.quantity * self.price_in_order
-    
+
     def save(self, *args, **kwargs):
         if not self.pk:
             self.price_in_order = self.article.price
@@ -87,12 +99,12 @@ class ArticleInOrder(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(price_in_order__gt=0),
-                name='positive_article_in_order_price'
+                name='positive_item_price'
             ),
             models.CheckConstraint(
                 condition=models.Q(quantity__gt=0), name='positive_quantity'
             ),
             models.UniqueConstraint(
-                fields=('order', 'article'), name='unique_article_per_order'
+                fields=('order', 'article'), name='unique_item'
             )
         ]
