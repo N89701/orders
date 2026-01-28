@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from orders.models import Article, ItemInOrder, Order
+from orders.models import ItemInOrder
 from orders.services import OrderService
 
 
@@ -15,8 +15,7 @@ class ItemAddingSerializer(serializers.Serializer):
             key: validated_data[key]
             for key in ('order_id', 'article_id', 'quantity')
         }
-        item = OrderService().add_item_to_order(**creation_data)
-        return item
+        return OrderService().add_item_to_order(**creation_data)
 
     def to_representation(self, instance):
         serializer = ItemInOrderSerializer(instance)
